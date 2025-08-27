@@ -1,107 +1,152 @@
-# Outlook Last-7-Days Mail Export → Excel (Microsoft Graph + MSAL)
+📧 Outlook Last-7-Days Mail Export → Excel
 
-Export Outlook emails (from a chosen folder) for the last _N_ days that match your keywords,
-extract dates mentioned **inside the email body**, and write everything to **Excel**.
+Python tool using Microsoft Graph + MSAL
 
----
+Export Outlook emails (from any folder) for the last N days, filter by keywords, extract dates from the body, and save everything to Excel.
 
-## What you get
-- Microsoft Graph **device code flow** (no secrets needed)
-- Query **Inbox or any subfolder** (e.g., `Inbox/Invoices/2025`)
-- Keyword search on **from/subject/body** (Graph `$search`)
-- Extract **dates** from message body (natural-language + regex)
-- Output to **Excel**: `Subject | Received (IST) | Extracted Dates | From | Link`
+✨ Features
 
----
+🔑 Microsoft Graph device code flow → No client secrets required.
 
-## 0) Prerequisites
-- Python 3.9+ (tested with 3.10+)
-- An Outlook/Microsoft 365 account (Work/School or Outlook.com)
-- Internet access
+📂 Query any folder → e.g., Inbox, Inbox/Invoices/2025.
 
----
+🔍 Keyword search (from/subject/body via Graph $search).
 
-## 1) Azure App Registration (one-time)
-1. Go to **Entra admin center** → *App registrations* → **New registration**.
-2. Name it (e.g., `Outlook-Mail-Export-POC`).
-3. Supported account types: choose based on your needs (e.g., *Accounts in any organizational directory and personal Microsoft accounts*).
-4. **Authentication** → Add a platform → **Mobile and desktop applications**.
-   - Add Redirect URI: `https://login.microsoftonline.com/common/oauth2/nativeclient`
-   - Enable: **Allow public client flows** (a toggle called “Enable the following mobile and desktop flows”).
-5. **API permissions** → Add a permission → **Microsoft Graph** (Delegated):
-   - `Mail.Read`
-   - `offline_access` is implied when using delegated scopes (token refresh), but we’ll request it explicitly.
-   - (Optional for OneDrive/Excel writes via Graph: `Files.ReadWrite` — not required here since we write locally.)
-6. Save your **Application (client) ID**. Tenant can be your directory ID or `"common"`.
+📅 Extract dates inside the email body (NLP + regex).
 
-> You don’t need a client secret for device-code flow.
+📊 Excel output with:
 
----
+Subject
 
-## 2) Configure the project
-Copy `.env.example` to `.env` and fill:
-```
+Received (IST)
+
+Extracted Dates
+
+From
+
+Direct Outlook link
+
+⚡ Prerequisites
+
+🐍 Python 3.9+ (tested with 3.10+)
+
+📬 Outlook / Microsoft 365 account (Work/School/Outlook.com)
+
+🌐 Internet access
+
+
+
+🔄 Architecture / Workflow
+Mermaid Diagram (Markdown GitHub-ready)
+flowchart TD
+    A[👨‍💻 User runs Python script<br/>fetch_outlook.py] --> B[🔐 Microsoft Graph Auth<br/>(Device Code Flow)]
+    B --> C[📬 Outlook Mailbox<br/> (Inbox / Subfolders)]
+    C --> D[🔍 Apply Filters<br/>Keywords + Last N days]
+    D --> E[📑 Extract Dates<br/>from Email Body (Regex + NLP)]
+    E --> F[📊 Save to Excel<br/>(Subject, From, Dates, Link)]
+
+    
+
+🔑 1. Azure App Registration (one-time)
+
+Go to Entra admin center → App registrations → New registration
+
+Name it: Outlook-Mail-Export-POC
+
+Supported account types → choose “Accounts in any directory + personal Microsoft accounts”
+
+Authentication → Add platform → Mobile and desktop applications
+
+Redirect URI: https://login.microsoftonline.com/common/oauth2/nativeclient
+
+Enable ✅ Allow public client flows
+
+API Permissions → Microsoft Graph → Delegated →
+
+Mail.Read
+
+offline_access (for token refresh)
+(Optional: Files.ReadWrite if you want Graph-based Excel writes — not required here)
+
+Save your Application (Client) ID + Tenant ID (or use common)
+
+⚙️ 2. Project Configuration
+
+Copy .env.example → .env and set:
+
 CLIENT_ID=your_client_id_here
 TENANT=common
 FOLDER_PATH=Inbox
 KEYWORDS=invoice,PO
 DAYS=7
 OUTPUT_XLSX=outlook_last7days.xlsx
-```
 
-- `FOLDER_PATH` supports nested paths like `Inbox/Invoices/2025`.
-- `KEYWORDS` is comma-separated. Leave empty to skip keyword search.
-- `DAYS` default 7.
-- `TENANT`: use your tenant ID if you want to restrict; `common` works for most.
 
----
+FOLDER_PATH → supports nested like Inbox/Invoices/2025
 
-## 3) Install & run
-```bash
-# inside this folder
+KEYWORDS → comma-separated (invoice,PO)
+
+DAYS → default 7
+
+TENANT → use tenant ID or common
+
+🚀 3. Install & Run
+# Setup environment
 python -m venv .venv
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-# macOS/Linux:
+# Activate (Windows)
+.venv\Scripts\Activate.ps1
+# Activate (macOS/Linux)
 source .venv/bin/activate
 
+# Install dependencies
 pip install -r requirements.txt
 
-# First run will show a device code + URL. Open the link, paste the code, finish login.
+# Run (first time → device code flow login)
 python src/fetch_outlook.py
-```
 
-Optional CLI flags override `.env`:
-```bash
-python src/fetch_outlook.py --folder "Inbox/Invoices" --keywords "invoice,PO" --days 7 --out report.xlsx --tenant common --client-id YOUR_ID
-```
+🔧 Optional CLI flags
+python src/fetch_outlook.py \
+  --folder "Inbox/Invoices" \
+  --keywords "invoice,PO" \
+  --days 7 \
+  --out report.xlsx \
+  --tenant common \
+  --client-id YOUR_ID
 
----
+📂 4. Output
 
-## 4) Output
-The script writes an Excel file with columns:
-- `Subject`
-- `Received (IST)`
-- `Extracted Dates`
-- `From`
-- `Link` (opens the message in Outlook on the web)
+✅ Excel file with columns:
 
----
+Subject
 
-## 5) Notes & tips
-- Keyword search uses Graph `$search` (KQL). We send header `ConsistencyLevel: eventual` only when `$search` is used.
-- Date extraction uses both **natural-language parsing** and **regex** to increase recall.
-- If you see HTTP 429 (throttling), the script retries with backoff automatically.
-- If you change permissions or sign in with a different account, you may need to delete `msal_cache.bin`.
-- IST conversion is done with `Asia/Kolkata` (fixed UTC+5:30 offset). Change in the code if needed.
+Received (IST)
 
----
+Extracted Dates
 
-## 6) Troubleshooting
-- **Auth window doesn’t open**: Device-code flow prints a URL + code right in your terminal; open the URL manually and paste the code.
-- **Insufficient privileges**: Ensure the app has **Mail.Read (Delegated)** and you consented.
-- **Folder not found**: Check the exact folder path (`Inbox/Subfolder` names must match).
+From
 
----
+Link (click → opens message in Outlook Web)
 
-## 7) License
-MIT — free to use for your college POC or production experiments.
+💡 5. Notes & Tips
+
+Keyword search → uses Graph $search (ConsistencyLevel: eventual).
+
+Date extraction → NLP + regex for better accuracy.
+
+HTTP 429 (throttling) → handled with auto-retry + backoff.
+
+Change accounts/permissions → delete msal_cache.bin.
+
+IST conversion uses Asia/Kolkata (UTC+5:30).
+
+🛠 6. Troubleshooting
+
+🔒 Auth issue → Use the device code shown in terminal → open link → paste code.
+
+⚠️ Insufficient privileges → Ensure Mail.Read delegated is consented.
+
+📁 Folder not found → Double-check path (case-sensitive).
+
+📜 7. License
+
+MIT — ✅ free to use for college POC or production experiments.
